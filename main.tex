@@ -47,7 +47,7 @@ However, to our knowledge, it has never been fully documented or proven secure.
 In this report, we fully describe the Generalized Bulletproofs design as a standalone protocol for ease of analysis and implementation.
 We identify an issue whereby the existing description and implementation do not admit a proof of computational witness-extended emulation.
 To solve this, we provide a modified proving relation that extends the generators used for the added Pedersen vector commitments, along with a corresponding change to the protocol.
-We are able to take advantage of the modified relation to extend the protocol in a way that may be useful for efficiency, by allowing for the use of additional weighting matrices that allow for more arithmetic circuit constraints in a proof.
+We are able to take advantage of the modified relation to extend the protocol in a way that may be useful for efficiency, by allowing for the use of additional weighting matrices that allow for more arithmetic circuit constraints within vector commitments, albeit at the cost of increased proof size.
 We then produce a proof of security analogous to that of Theorem 4 from the Bulletproofs preprint.
 This proof shows that, like its parent proving system, the (modified) Generalized Bulletproofs design has perfect completeness, perfect special honest-verifier zero knowledge, and computational witness-extended emulation.
 
@@ -59,7 +59,7 @@ While the preprint uses $\mathbb{Z}_p$ to represent the scalar field of the grou
 However, while the preprint uses lowercase letters to represent certain group elements, we use the corresponding capital letters in order to more consistently differentiate group elements from scalars.
 Like the preprint, we continue to use capital letters for matrices.
 
-The author thanks Luke Parker for helpful review and discussion.
+The author thanks Luke Parker for helpful review and discussion, especially leading to discovery of an indexing issue with an earlier version of this report.
 
 
 \section{Protocol}
@@ -93,16 +93,17 @@ In practice, we require $n_c > 0$ as indicated to ensure the modification is non
 A key component to the modification to the original Bulletproofs proving system is in the construction of vector polynomials $\vec{l}(X)$ and $\vec{r}(X)$ to accommodate the added Pedersen vector commitments and associated weighting matrices.
 This change involves carefully including certain elements as specific coefficients of these polynomials.
 
-To make more clear how these coefficients are arranged, let $n' = 2 + 2 \lfloor n_c / 2 \rfloor$.
+To make more clear how these coefficients are arranged, let $n' = 2(n_c + 1)$.
 Define the following pairs of indices, which we will use later:
 \begin{center}
 	\begin{tabular}{ll}
 		$i_{LR} = n'/2$ & $j_{LR} = i_{LR}$ \\
 		$i_O = n'$ & $j_O = 0$ \\
-		$i_S = n' + 1$ & $j_S = i_S$
+		$i_S = n' + 1$ & $j_S = i_S$ \\
+		$i_k = k$ & $j_k = n' - k$
 	\end{tabular}
 \end{center}
-For each $k \in [1, n_c]$, assign the pair $(i_k, j_k)$ iteratively, setting $i_k$ to the minimum unused index in the range $[0, n']$ and $j_k = n' - i_k$.
+Here $k$ takes on each value in the range $[1, n_c]$.
 These indices are assigned such that pairs (aside from the $S$ pair, which functions differently for masking purposes) sum to $n'$, which will be important in the protocol.
 
 Overall, the protocol closely mirrors Protocol 3 in the Bulletproofs preprint.
@@ -300,7 +301,7 @@ Because the changes are nontrivial, we include the full proof.
 	If this does not hold for all such challenges in valid transcripts, we again have a nontrivial discrete logarithm relation between the generators.
 
 	We now show that the inner-product coefficient $t_{n'}$ has the form described above, corresponding to that of an honest prover.
-	To do so, the extractor takes $2(n_c + 1)$ valid transcripts corresponding to fixed challenges $y, z$ and distinct challenges for $x$.
+	To do so, the extractor takes $2(n' + 1)$ valid transcripts corresponding to fixed challenges $y, z$ and distinct challenges for $x$.
 	Applying a similar linear combination technique as before to Equation \ref{eqn:verify2} using these challenges, we obtain for each $i \in [1, 2(n' + 1)], i \neq n'$ a tuple $(\tau_i, t_i)$ such that $T_i = t_i G + \tau_i H$.
 	We also obtain $v, \gamma$ such that the equation
 	$$v G + \gamma H = \left( \zq \mat{W}_V \right) \vec{V}$$
