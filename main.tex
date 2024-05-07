@@ -59,6 +59,8 @@ While the preprint uses $\mathbb{Z}_p$ to represent the scalar field of the grou
 However, while the preprint uses lowercase letters to represent certain group elements, we use the corresponding capital letters in order to more consistently differentiate group elements from scalars.
 Like the preprint, we continue to use capital letters for matrices.
 
+The author thanks Luke Parker for helpful review and discussion.
+
 
 \section{Protocol}
 
@@ -360,7 +362,7 @@ Further, we include additional weighting matrices; for all $k \in [1, n_c]$, the
 
 The reason for these changes can be seen in the proof of computational witness-extended emulation.
 The extractor defined in the proof obtains, for $k \in [1, n_c]$, the opening
-$$C_k = \vec{c}_{k,L} \vec{G} + \vec{c}_{k,R} \vec{H} + H$$
+$$C_k = \vec{c}_{k,L} \vec{G} + \vec{c}_{k,R} \vec{H} + c'_k H$$
 to the corresponding Pedersen vector commitment.
 For this opening to represent a valid witness in the original design, it must be the case that $\vec{c}_{k,R}$ vanishes; however, this does not follow from the structure of the verifier.
 
