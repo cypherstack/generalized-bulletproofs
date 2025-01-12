@@ -47,9 +47,8 @@ However, to our knowledge, it has never been fully documented or proven secure.
 In this report, we fully describe the Generalized Bulletproofs design as a standalone protocol for ease of analysis and implementation.
 We identify an issue whereby the existing description and implementation do not admit a proof of computational witness-extended emulation.
 To solve this, we provide a modified proving relation that extends the generators used for the added Pedersen vector commitments, along with a corresponding change to the protocol.
-We are able to take advantage of the modified relation to extend the protocol in a way that may be useful for efficiency, by allowing for the use of additional weighting matrices that allow for more arithmetic circuit constraints within vector commitments, albeit at the cost of increased proof size.
 We then produce a proof of security analogous to that of Theorem 4 from the Bulletproofs preprint.
-This proof shows that, like its parent proving system, the (modified) Generalized Bulletproofs design has perfect completeness, perfect special honest-verifier zero knowledge, and computational witness-extended emulation.
+This proof shows that, like its parent proving system, the (modified) Generalized Bulletproofs design has perfect completeness (under a particular witness restriction), perfect special honest-verifier zero knowledge, and computational witness-extended emulation.
 
 We note carefully that while the Bulletproofs preprint uses multiplicative notation for group operations, we use additive notation here.
 This is both to improve readability and aid implementation, as most popular elliptic curve libraries use additive conventions for group operations.
@@ -69,20 +68,20 @@ The protocol can be made non-interactive using the strong Fiat-Shamir technique,
 
 Let $n_c$ be the number of Pedersen vector commitments $\vec{C}$ used by the protocol, where for $k \in [1, n_c]$ we have $C_k = \vec{c}_{k,L} \vec{G} + \vec{c}_{k,R} \vec{H} + c'_k H$.
 We require that $n_c = O(\lambda)$ for security parameter $\lambda$.
-For each $k \in [1, n_c]$, let $\mat{W}_{k,L}$ be the corresponding weighting matrix for the $\vec{G}$ components of $C_k$, and let $\mat{W}_{k,R}$ be the weighting matrix for the $\vec{H}$ components of $C_k$.
-Note that this differs from the existing Generalized Bulletproofs description and implementation, where vector commitments have no $\vec{H}$ component or corresponding weighting matrices.
+For each $k \in [1, n_c]$, let $\mat{W}_{k,L}$ be the corresponding weighting matrix for the $\vec{G}$ components of $C_k$.
+Note that this differs from the existing Generalized Bulletproofs description and implementation, where vector commitments have no $\vec{H}$ component.
 
 The protocol is a proving system for the following relation:
 \begin{multline}
 \label{eqn:relation}
 \Biggl\{ G, H \in \GG, \vec{G}, \vec{H} \in \GG^n, \\
 \vec{V} \in \GG^m, \vec{C} \in \GG^{n_c}, \vec{c} \in \FF^Q, \\
-\mat{W}_L, \mat{W}_R, \mat{W}_O, \{ (\mat{W}_{k,L}, \mat{W}_{k,R}) \}_{k=1}^{n_c} \in \FF^{Q \times n}, \mat{W}_V \in \FF^{Q \times m} ; \\
+\mat{W}_L, \mat{W}_R, \mat{W}_O, \{ \mat{W}_{k,L} \}_{k=1}^{n_c} \in \FF^{Q \times n}, \mat{W}_V \in \FF^{Q \times m} ; \\
 \vec{a}_L, \vec{a}_R, \vec{a}_O, \{ (\vec{c}_{k,L}, \vec{c}_{k,R}) \}_{k=1}^{n_c} \in \FF^n, \vec{v}, \vec{\gamma} \in \FF^m, \vec{c}' \in \FF^{n_c} \mid \\
 \forall j \in [1, m]: V_j = v_j G + \gamma_j H, \\
 \forall k \in [1, n_c]: C_k = \vec{c}_{k,L} \vec{G} + \vec{c}_{k,R} \vec{H} + c'_k H, \\
 \vec{a}_L \circ \vec{a}_R = \vec{a}_O, \\
-\mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_O + \sum_{k=1}^{n_c} \left( \mat{W}_{k,L} \vec{c}_{k,L} + \mat{W}_{k,R} \vec{c}_{k,R} \right) = \mat{W}_V \vec{v} + \vec{c} \Biggr\}
+\mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_O + \sum_{k=1}^{n_c} \mat{W}_{k,L} \vec{c}_{k,L} = \mat{W}_V \vec{v} + \vec{c} \Biggr\}
 \end{multline}
 We require that $\mat{W}_V$ have rank $m$.
 The relation is organized such that the first line contains fixed parameters, the next two contain the statement, the next contains the witness, and the remaining contain the conditions.
@@ -93,7 +92,7 @@ In practice, we require $n_c > 0$ as indicated to ensure the modification is non
 A key component to the modification to the original Bulletproofs proving system is in the construction of vector polynomials $\vec{l}(X)$ and $\vec{r}(X)$ to accommodate the added Pedersen vector commitments and associated weighting matrices.
 This change involves carefully including certain elements as specific coefficients of these polynomials.
 
-To make more clear how these coefficients are arranged, let $n' = 2(n_c + 1)$.
+To make more clear how these coefficients are arranged, let $n' = 2 + 2 \lfloor n_c / 2 \rfloor$.
 Define the following pairs of indices, which we will use later:
 \begin{center}
 	\begin{tabular}{ll}
@@ -103,7 +102,7 @@ Define the following pairs of indices, which we will use later:
 		$i_k = k$ & $j_k = n' - k$
 	\end{tabular}
 \end{center}
-Here $k$ takes on each value in the range $[1, n_c]$.
+For each $k \in [1, n_c]$, let $i_k$ be the lowest value in $[0, n') \setminus \{ n'/2 \}$ not occupied by any other $i_k'$ for $k' < k$, and let $j_k = n' - i_k$.
 These indices are assigned such that pairs (aside from the $S$ pair, which functions differently for masking purposes) sum to $n'$, which will be important in the protocol.
 
 Overall, the protocol closely mirrors Protocol 3 in the Bulletproofs preprint.
@@ -136,10 +135,9 @@ The prover then does the following:
 		$\vec{l}_{i_{LR}} = \vec{a}_L + \vec{y}^{-n} \circ \zq \vec{W}_R$ & $\vec{r}_{j_{LR}} = \vec{y}^n \circ \vec{a}_R + \zq \vec{W}_L$ \\
 		$\vec{l}_{i_O} = \vec{a}_O$ & $\vec{r}_{j_O} = \zq \vec{W}_O - \vec{y}^n$ \\
 		$\vec{l}_{i_S} = \vec{s}_L$ & $\vec{r}_{j_S} = \vec{y}^n \circ \vec{s}_R$ \\
-		$\vec{l}_{i_k} = \vec{c}_{k,L}$ & $\vec{r}_{j_k} = \zq \mat{W}_{k,L}$ \\
-		$\vec{l}_{j_k} = \vec{y}^{-n} \circ \zq \mat{W}_{k,R}$ & $\vec{r}_{i_k} = \vec{y}^n \circ \vec{c}_{k,R}$
+		$\vec{l}_{i_k} = \vec{c}_{k,L}$ & $\vec{r}_{j_k} = \zq \mat{W}_{k,L}$
 		\end{tabular}
-	\end{center}		
+	\end{center}
 	\item Computes polynomials
 	$$\vec{l}(X) = \sum_{i=0}^{n' + 1} l_i X^i$$
 	and
@@ -170,9 +168,7 @@ The verifier then does the following:
 	and
 	$$W_O = \left( \zq \mat{W}_O \right) \vec{H}'.$$
 	\item For $k \in [1, n_c]$, computes
-	$$W_{k,L} = \left( \zq \mat{W}_{k,L} \right) \vec{H}'$$
-	and
-	$$W_{k,R} = \left( \vec{y}^{-n} \circ \zq \mat{W}_{k,R} \right) \vec{G}.$$
+	$$W_{k,L} = \left( \zq \mat{W}_{k,L} \right) \vec{H}'.$$
 	\item Asserts that the equation
 	\begin{equation}
 		\label{eqn:verify1}
@@ -189,7 +185,7 @@ The verifier then does the following:
 	\item Sets
 	\begin{multline*}
 		P = x^{i_{LR}} A_I + x^{i_O} A_O - x^{j_O} \left( \vec{y}^n \vec{H}' \right) + x^{i_{LR}} W_L + x^{i_{LR}} W_R + x^{j_O} W_O + x^{i_S} S \\
-		+ \sum_{k=1}^{n_c} x^{j_k} W_{k,L} + \sum_{k=1}^{n_c} x^{j_k} W_{k,R} + \sum_{k=1}^{n_c} x^{i_k} C_k
+		+ \sum_{k=1}^{n_c} x^{j_k} W_{k,L} + \sum_{k=1}^{n_c} x^{i_k} C_k
 	\end{multline*}
 	and asserts that the equation
 	\begin{equation}
@@ -209,10 +205,11 @@ This reduces the communication complexity logarithmically by replacing the prove
 
 \section{Security}
 
-We now prove that the Generalized Bulletproofs arithmetic circuit satisfiability proving system has the desired security properties, using a theorem identical to Theorem 4 in the Bulletproofs preprint.
+We now prove that the Generalized Bulletproofs arithmetic circuit satisfiability proving system has the desired security properties, using a theorem similar to Theorem 4 in the Bulletproofs preprint.
 
 \begin{theorem}
-	The proof system presented has perfect completeness, perfect special honest-verifier zero knowledge, and computational witness-extended emulation.
+	The proof system presented has perfect special honest-verifier zero knowledge and computational witness-extended emulation.
+	It is perfectly complete if $\vec{c}_{k,R}$ vanishes for all $k \in [1, n_c]$.
 \end{theorem}
 
 The proof closely follows Appendix D in the Bulletproofs preprint, with corresponding changes to accommodate the protocol modifications.
@@ -224,7 +221,7 @@ Because the changes are nontrivial, we include the full proof.
 	Equation \ref{eqn:verify1} holds by definition.
 	Equation \ref{eqn:verify3} holds by inspection.
 	Equation \ref{eqn:verify2} holds provided that
-	$$t_{n'} = \delta(y, z) + \left\langle \zq, \mat{W}_L \vec{a_L} + \mat{W}_R \vec{a_R} + \mat{W}_O \vec{a_O} + \sum_{k=1}^{n_c} \left( \mat{W}_{k,L} \vec{c}_{k,L} + \mat{W}_{k,R} \vec{c}_{k,R} \right) \right\rangle$$
+	$$t_{n'} = \delta(y, z) + \left\langle \zq, \mat{W}_L \vec{a_L} + \mat{W}_R \vec{a_R} + \mat{W}_O \vec{a_O} + \sum_{k=1}^{n_c} \mat{W}_{k,L} \vec{c}_{k,L} \right\rangle$$
 	since, in this case,
 	$$t_{n'} = \delta(y, z) + \left\langle \zq, \mat{W}_V \vec{v} + \vec{c} \right\rangle$$
 	for a valid witness by Relation \ref{eqn:relation}.
@@ -233,7 +230,7 @@ Because the changes are nontrivial, we include the full proof.
 	Because of the construction of polynomial indices, this coefficient is given by
 	$$t_{n'} = \left\langle \vec{l}_{i_{LR}}, \vec{r}_{j_{LR}} \right\rangle
 	+ \left\langle \vec{l}_{i_O}, \vec{r}_{j_O} \right\rangle
-	+ \sum_{k=1}^{n_c} \left\langle \vec{l}_{i_k}, \vec{r}_{j_k} \right\rangle + \sum_{k=1}^{n_c} \left\langle \vec{l}_{j_k}, \vec{l}_{i_k} \right\rangle$$
+	+ \sum_{k=1}^{n_c} \left\langle \vec{l}_{i_k}, \vec{r}_{j_k} \right\rangle$$
 	from which the required equality holds algebraically by the definition of these terms, using the fact that $\vec{a}_l \circ \vec{a}_R = \vec{a}_O$ implies that
 	$$\left\langle \vec{a}_L, \vec{a}_R \circ \vec{y}^n \right\rangle - \left\langle \vec{a}_O, \vec{y}^n \right\rangle = \sum_{i=0}^{n-1} y^i \left( a_{L,i} a_{R,i} - a_{O,i} \right) = 0$$
 	for an honest prover.
@@ -251,7 +248,7 @@ Because the changes are nontrivial, we include the full proof.
 	Finally, it samples $A_I, A_O, \mu$ uniformly at random, and defines
 	\begin{multline*}
 		S = -x^{-i_S} \Biggl[ x^{i_{LR}} A_I + x^{i_O} A_O - x^{j_O} \left( \vec{y}^n \vec{H}' \right) + x^{i_{LR}} W_L + x^{i_{LR}} W_R + x^{j_O} W_O \\
-		+ \sum_{k=1}^{n_c} x^{j_k} W_{k,L} + \sum_{k=1}^{n_c} x^{j_k} W_{k,R} + \sum_{k=1}^{n_c} x^{i_k} C_k - \vec{l} \vec{G} - \vec{r} \vec{H}' - \mu H \Biggr]
+		+ \sum_{k=1}^{n_c} x^{j_k} W_{k,L} + \sum_{k=1}^{n_c} x^{i_k} C_k - \vec{l} \vec{G} - \vec{r} \vec{H}' - \mu H \Biggr]
 	\end{multline*}
 	to satisfy Equation \ref{eqn:verify3}.
 
@@ -273,7 +270,7 @@ Because the changes are nontrivial, we include the full proof.
 	The extractor we define uses $n$ distinct challenges $y$, $Q + 1$ distinct challenges $z$, and $2(n' + 1) + 1$ challenges $x$; this results in a total of $\left[ 2(n' + 1) + 1 \right] (Q + 1) n$ transcripts.
 
 	The extractor first fixes challenges $y, z$ and rewinds to obtain $n_c + 3$ unique $x$ challenges $\{ x_i \}_{i=1}^{n_c + 3}$.
-	With high probability, we can obtain weighting coefficients $\{ \nu_i \}_{i=1}^{n_c + 3}$ such that 
+	With high probability, we can obtain weighting coefficients $\{ \nu_i \}_{i=1}^{n_c + 3}$ such that
 	$$\sum_{i=1}^{n_c + 3} \nu_i x_i^{i_{LR}} = 1$$
 	and
 	$$\sum_{i=1}^{n_c + 3} \nu_i x_i^\xi = 0$$
@@ -288,10 +285,7 @@ Because the changes are nontrivial, we include the full proof.
 
 	We can then use these openings in Equation \ref{eqn:verify3} for all challenge tuples $(x, y, z)$ to replace the values $A_I, A_O, S, \vec{C}$.
 	We can then express the vectors $\vec{l}, \vec{r}$ as
-	\begin{multline*}
-		\vec{l} = \vec{a}_L x^{i_{LR}} + \vec{a}_{O,L} x^{i_O} + \left( \vec{y}^{-n} \circ \zq \mat{W}_R \right) x^{i_{LR}} + \vec{s}_L x^{i_S} + \\
-		\sum_{k=1}^{n_c} x^{j_k} \left( \vec{y}^{-n} \circ \zq \mat{W}_{k,R} \right) + \sum_{k=1}^{n_c} \vec{c}_{k,L} x^{i_k}
-	\end{multline*}
+	$$\vec{l} = \vec{a}_L x^{i_{LR}} + \vec{a}_{O,L} x^{i_O} + \left( \vec{y}^{-n} \circ \zq \mat{W}_R \right) x^{i_{LR}} + \vec{s}_L x^{i_S} + \sum_{k=1}^{n_c} \vec{c}_{k,L} x^{i_k}$$
 	and
 	\begin{multline*}
 	\vec{r} = \left( \vec{y}^n \circ \vec{a}_R \right) x^{i_{LR}} + \left( \vec{y}^n \circ \vec{a}_{O,R} \right) x^{i_O} - \vec{y}^n x^{j_O} + \left( \zq \mat{W}_L \right) x^{i_{LR}} \\
@@ -325,17 +319,17 @@ Because the changes are nontrivial, we include the full proof.
 	Using the representations of $\vec{l}$ and $\vec{r}$ above, it follows that
 	\begin{multline*}
 		p_{n'} = \delta(y, z) + \left\langle \vec{a}_L, \vec{y}^n \circ \vec{a}_R \right\rangle - \left\langle \vec{a}_{O,L}, \vec{y}^n \right\rangle \\
-		+ \left\langle \zq, \mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_{O,L} + \sum_{i=1}^{n_c} \left( \mat{W}_{k,L} \vec{c}_{k,L} + \mat{W}_{k,R} \vec{c}_{k,R} \right) \right\rangle
+		+ \left\langle \zq, \mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_{O,L} + \sum_{i=1}^{n_c} \mat{W}_{k,L} \vec{c}_{k,L} \right\rangle
 	\end{multline*}
 	using the definitions of polynomial indices that sum to $n'$ across $\vec{l}$ and $\vec{r}$.
-	The polynomial equality between $t(X)$ and $p(X)$ mean that for any $y, z$ we have $p_2 = t_2$.
+	The polynomial equality between $t(X)$ and $p(X)$ means that for any $y, z$ we have $p_{n'} = t_{n'}$.
 
-	Now fix $y$ and consider $Q + 1$ distinct challenges $z$, and consider $p_2(z)$ and $t_2(z)$ as polynomials in $\FF^n[Z]$ evaluated at $Z = z$.
-	Since $p_2(z) = t_2(z)$ for all such evaluations, this difference is the zero polynomial.
+	Now fix $y$ and consider $Q + 1$ distinct challenges $z$, and consider $p_{n'}(z)$ and $t_{n'}(z)$ as polynomials in $\FF^n[Z]$ evaluated at $Z = z$.
+	Since $p_{n'}(z) = t_{n'}(z)$ for all such evaluations, this difference is the zero polynomial.
 	Similarly, using $n$ distinct challenges $y$, the equalities
 	$$\vec{a}_L \circ \vec{a}_R - \vec{a}_{O,L} = \vec{0}^n$$
 	and
-	$$\mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_{O,L} + \sum_{i=1}^{n_c} \left( \mat{W}_{k,L} \vec{c}_{k,L} + \mat{W}_{k,R} \vec{c}_{k,R} \right) = \mat{W}_V \vec{v} + \vec{c}$$
+	$$\mat{W}_L \vec{a}_L + \mat{W}_R \vec{a}_R + \mat{W}_O \vec{a}_{O,L} + \sum_{i=1}^{n_c} \mat{W}_{k,L} \vec{c}_{k,L} = \mat{W}_V \vec{v} + \vec{c}$$
 	follow.
 	Setting $\vec{a}_O = \vec{a}_{O,L}$, we have a valid witness tuple
 	$$\left( \vec{a}_L, \vec{a}_R, \vec{a}_O, \{ (\vec{c}_{k,L}, \vec{c}_{k,R}) \}_{k=1}^{n_c}, \vec{v}, \vec{\gamma}, \vec{c}' \right)$$
@@ -347,11 +341,12 @@ Because the changes are nontrivial, we include the full proof.
 	This means we can apply the forking lemma and computational witness-extended emulation holds.
 \end{proof}
 
-Because the inner-product argument technique directly applies to the Generalized Bulletproofs design, we can present a theorem identical to Theorem 5 in the Bulletproofs preprint.
+Because the inner-product argument technique directly applies to the Generalized Bulletproofs design, we can present a theorem similar to Theorem 5 in the Bulletproofs preprint.
 The proof is identical as well, so we omit it here.
 
 \begin{theorem}
-	The arithmetic circuit protocol using the improved inner-product argument has perfect completeness, statistical zero knowledge, and computational soudness under the discrete logarithm assumption.
+	The arithmetic circuit protocol using the improved inner-product argument has statistical zero knowledge and computational soudness under the discrete logarithm assumption.
+	It is perfectly complete if $\vec{c}_{k,R}$ vanishes for all $k \in [1, n_c]$.
 \end{theorem}
 
 
@@ -359,17 +354,15 @@ The proof is identical as well, so we omit it here.
 
 As noted above, the protocol described and proven secure in this report differs from the existing Generalized Bulletproofs design.
 Specifically, Pedersen vector commitments in the original design are with respect to $\vec{G}, H$; in our modification, they are with respect to $\vec{G}, \vec{H}, H$.
-Further, we include additional weighting matrices; for all $k \in [1, n_c]$, the weighting matrix $W_{k,L}$ acts on corresponding vector commitment opening component $\vec{c}_{k,L}$, and the weighting matrix $W_{k,R}$ acts on opening component $\vec{c}_{k,R}$.
+However, perfect completeness is only shown to hold in the case where the $\vec{H}$ terms vanish.
 
-The reason for these changes can be seen in the proof of computational witness-extended emulation.
+The reason for this change can be seen in the proof of computational witness-extended emulation.
 The extractor defined in the proof obtains, for $k \in [1, n_c]$, the opening
 $$C_k = \vec{c}_{k,L} \vec{G} + \vec{c}_{k,R} \vec{H} + c'_k H$$
 to the corresponding Pedersen vector commitment.
 For this opening to represent a valid witness in the original design, it must be the case that $\vec{c}_{k,R}$ vanishes; however, this does not follow from the structure of the verifier.
 
 By modifying the vector commitment structure to permit $\vec{H}$ components, the extracted witness is valid.
-This requires a minor change to the prover as well, which now accounts for each $\vec{c}_{k,R}$.
-This enables us to include the weighting matrix generalization as well.
 
 We caution that any use of this modified protocol must ensure that the relation meets any security requirements.
 
